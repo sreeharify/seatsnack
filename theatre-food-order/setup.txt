@@ -1,0 +1,335 @@
+====================================================================
+REEL BITES — SETUP GUIDE (do this entirely from your phone, no code)
+====================================================================
+
+WHAT YOU'RE DEPLOYING
+----------------------
+- Frontend: a website (Vite + React) — customers order food, staff see a
+  live dashboard, admin manages menu/QR codes.
+- Backend: "serverless functions" that live inside the same project
+  (folder: functions/). No server to rent or maintain.
+- Database: Neon — serverless Postgres. Free, scales to zero, no server
+  to maintain either.
+- Payments: Razorpay, in TEST MODE (fake money, real flow).
+- Hosting: Cloudflare Pages — builds and hosts the whole thing for free,
+  and runs the serverless functions for you.
+
+You will NOT need to install Node.js, run npm, or use a terminal.
+Cloudflare does the "npm install" and "build" step in the cloud for you.
+You only need: a web browser on your phone, and 4 free accounts.
+
+Total time: ~30-40 minutes the first time.
+
+
+====================================================================
+PART 0 — UNZIP THE PROJECT ON YOUR PHONE
+====================================================================
+Android:
+  1. Open the Files app (or install "ZArchiver" / "Files by Google" if
+     you don't have an unzip tool).
+  2. Find the downloaded theatre-food-order.zip file.
+  3. Tap it > Extract / Unzip. You'll get a folder called
+     "theatre-food-order" with all the files inside.
+
+iPhone:
+  1. Open the Files app.
+  2. Find theatre-food-order.zip in Downloads.
+  3. Tap it — iOS unzips it automatically into a folder of the same name.
+
+Keep note of where this folder is — you'll upload it to GitHub next.
+
+
+====================================================================
+PART 1 — PUSH THE CODE TO GITHUB (from mobile browser)
+====================================================================
+1. Go to https://github.com and log in (create a free account if needed).
+
+2. Switch your mobile browser to "Desktop site" mode.
+   - Chrome (Android): tap the ⋮ menu > check "Desktop site".
+   - Safari (iPhone): tap the "aA" icon in the address bar > "Request
+     Desktop Website".
+   This makes GitHub's upload page usable on a phone.
+
+3. Tap the "+" icon (top right) > "New repository".
+   - Name it: theatre-food-order (or anything you like)
+   - Keep it Public or Private, your choice.
+   - Do NOT check "Add a README" — leave the repo empty.
+   - Tap "Create repository".
+
+4. On the new (empty) repo page, you'll see a link that says
+   "uploading an existing file" — tap it.
+   (If you don't see it, go to the repo, tap "Add file" > "Upload files".)
+
+5. Tap "choose your files". Your phone's file picker will open.
+   - Android: navigate into the unzipped "theatre-food-order" folder,
+     select ALL files and folders inside it (tap and hold the first
+     item, then tap the rest, or use "Select all"), and confirm. Most
+     Android file pickers preserve folder structure when you select a
+     folder itself — if your picker lets you pick the whole FOLDER
+     instead of individual files, do that instead, it's more reliable.
+   - iPhone: in the file picker, browse to the folder, tap "Select" in
+     the top-right, choose everything, then "Open" — or drag the whole
+     folder in if your picker supports drag-and-drop.
+
+6. IMPORTANT — check that these show up in the upload list with their
+   folder structure intact:
+     src/ (with pages, lib, styles subfolders)
+     functions/ (with api, _lib subfolders)
+     db/
+     package.json, vite.config.js, index.html, .gitignore, README.md,
+     .env.example, setup.txt
+
+   If your phone's uploader "flattens" folders (drops the folder names),
+   it won't work — GitHub needs the real folder paths. In that case,
+   use one of these easier alternatives instead:
+     a) GitHub mobile app doesn't support bulk uploads either — instead,
+        use https://github.dev in your mobile browser: open your empty
+        repo, change the URL from github.com/... to github.dev/...,
+        and you'll get a lightweight code editor where you can create
+        folders and paste file contents directly, OR
+     b) Ask a friend with a laptop for 5 minutes to run:
+          git clone (your empty repo URL)
+          (copy the unzipped files into that folder)
+          git add . && git commit -m "initial" && git push
+     c) Use a cloud IDE like https://replit.com or https://codesandbox.io
+        — import the zip there, connect it to GitHub, and push from
+        their built-in "Git" panel (works entirely in a mobile browser).
+
+7. Scroll down, add a commit message like "Initial commit", and tap
+   "Commit changes". Your code is now on GitHub.
+
+
+====================================================================
+PART 2 — SET UP THE DATABASE (Neon — serverless Postgres)
+====================================================================
+1. Go to https://neon.tech and sign up (free tier is enough).
+
+2. Create a new Project. Name it "reel-bites" (or anything).
+   - This gives you a database called "neondb" by default — that's fine.
+
+3. On the project dashboard, find "Connection Details" (sometimes called
+   "Connection string"). Copy the string that looks like:
+
+     postgres://USER:PASSWORD@ep-something.neon.tech/neondb?sslmode=require
+
+   Save this somewhere safe — this is your DATABASE_URL. You'll paste it
+   into Cloudflare in Part 3.
+
+4. In the Neon dashboard, find "SQL Editor" (in the left sidebar). This
+   lets you run database setup commands right from your phone browser —
+   no separate database app needed.
+
+5. Open the file db/schema.sql from your project (view it on GitHub by
+   navigating to the file, or re-open it from your unzipped folder).
+   Copy ALL of its contents, paste into the Neon SQL Editor, and run it
+   (there's a "Run" button). This creates all the tables.
+
+6. Now open db/seed.sql the same way, copy its contents into the SQL
+   Editor, and run it. This adds a demo theatre ("Aries Plex"), 3
+   screens, a sample show, and a menu — so you can test immediately
+   without using the admin panel first.
+
+   Note: seed.sql schedules a demo show 5 minutes from when you run it.
+   If you're demoing later, either re-run just that INSERT INTO shows
+   line with a new time, or add a fresh show later from the Admin panel.
+
+7. Good to know for later: the seed data uses this Screen 2 ID:
+     22222222-2222-2222-2222-222222222222
+   Your first test order link will be:
+     https://YOUR-SITE.pages.dev/order?screen=22222222-2222-2222-2222-222222222222&seat=G12
+   (You'll get YOUR-SITE.pages.dev in Part 3.)
+
+
+====================================================================
+PART 3 — DEPLOY TO CLOUDFLARE PAGES (serverless hosting + backend)
+====================================================================
+1. Go to https://dash.cloudflare.com and sign up for a free account.
+
+2. In the left sidebar, go to "Workers & Pages" > "Create" > "Pages" tab
+   > "Connect to Git".
+
+3. Authorize Cloudflare to access your GitHub account, then select the
+   "theatre-food-order" repository.
+
+4. On the build settings screen, set:
+     Framework preset:     Vite
+     Build command:        npm run build
+     Build output directory: dist
+     Root directory:       / (leave default)
+
+5. Before deploying, scroll down to "Environment variables" (or add them
+   after the first deploy via Settings > Environment Variables — either
+   works, just make sure they're set before you test the live site).
+   Add these one by one (Part 4 explains where RAZORPAY values come from):
+
+     DATABASE_URL        = (the Neon connection string from Part 2)
+     RAZORPAY_KEY_ID      = (from Part 4 below)
+     RAZORPAY_KEY_SECRET  = (from Part 4 below)
+     STAFF_PIN            = 1234   (pick your own — staff type this to
+                                     open the live orders dashboard)
+     ADMIN_PIN            = 9999   (pick your own — for the admin panel)
+
+   Tip: set these as "Production" AND "Preview" environment variables so
+   they also work on preview deployments.
+
+6. Tap "Save and Deploy". Cloudflare will install dependencies and build
+   your site — this takes 1-3 minutes. When it's done, you'll get a URL
+   like:
+
+     https://theatre-food-order.pages.dev
+
+   That's your live app. Bookmark it.
+
+7. If you added environment variables AFTER the first deploy, go to
+   Workers & Pages > your project > Deployments > tap the latest
+   deployment's "⋮" menu > "Retry deployment" so the new variables take
+   effect.
+
+
+====================================================================
+PART 4 — RAZORPAY TEST MODE SETUP
+====================================================================
+1. Go to https://razorpay.com and sign up for a free account (business
+   details can be filled minimally/skipped for test mode — you don't
+   need to complete full KYC to use TEST MODE).
+
+2. Once logged into the Razorpay Dashboard, look at the top — there's a
+   toggle switch for "Test Mode" / "Live Mode". Make sure it's set to
+   TEST MODE (this is critical — test mode uses fake money).
+
+3. Go to Settings (bottom-left) > "API Keys" > "Generate Test Key".
+   You'll get:
+     Key Id      → looks like  rzp_test_XXXXXXXXXXXX
+     Key Secret  → a longer random string (shown once — copy it now)
+
+4. Paste these into Cloudflare Pages > your project > Settings >
+   Environment Variables:
+     RAZORPAY_KEY_ID     = rzp_test_XXXXXXXXXXXX
+     RAZORPAY_KEY_SECRET = (the secret)
+
+   Then redeploy (Deployments > ⋮ > Retry deployment) so they take effect.
+
+5. TEST CARD DETAILS (use these when the Razorpay checkout popup opens
+   during a test order — no real money moves):
+     Card number : 4111 1111 1111 1111
+     Expiry      : any future date, e.g. 12/30
+     CVV         : any 3 digits, e.g. 123
+     Name        : any name
+     OTP (if asked): 1111 or leave the demo OTP screen's default
+
+   You can also test UPI: choose "UPI" at checkout and use the success
+   VPA: success@razorpay (this auto-succeeds in test mode).
+
+That's the whole payments setup — no bank account, no real transactions.
+
+
+====================================================================
+PART 5 — TEST THE FULL FLOW
+====================================================================
+1. CUSTOMER ORDER
+   Open on your phone:
+     https://YOUR-SITE.pages.dev/order?screen=22222222-2222-2222-2222-222222222222&seat=G12
+   - Add a few items, choose "During Interval", tap "Order Now".
+   - The Razorpay popup opens — pay with the test card above.
+   - You'll land on an order tracking screen showing Confirmed.
+
+2. STAFF DASHBOARD (do this on a second phone/tab so you can watch it
+   update live)
+   Open:
+     https://YOUR-SITE.pages.dev/staff
+   - Enter the STAFF_PIN you set in Part 3.
+   - Pick "Screen 2" from the dropdown.
+   - You should see the order from step 1 appear within ~4 seconds
+     (it polls automatically). A new order plays a two-tone chime and
+     vibrates the phone (tap anywhere on the staff screen once first —
+     phones require one tap before a page is allowed to play sound).
+   - Tap "Start Preparing" → "Mark Ready" → "Mark Delivered".
+
+3. Go back to the customer tracking tab — you should see the status
+   update live (Confirmed → Preparing → Ready → Delivered) within a
+   few seconds of each staff action.
+
+4. ADMIN PANEL
+   Open:
+     https://YOUR-SITE.pages.dev/admin
+   - Enter the ADMIN_PIN.
+   - Add/disable menu items, add screens, schedule new shows, and
+     generate a QR code for any seat (Admin > "Generate Seat QR" —
+     pick a screen, type a seat label like "H05", and a scannable QR
+     appears that links straight to that seat's order page).
+   - Print or display these QR codes at real seats for your live demo.
+
+
+====================================================================
+HOW "LIVE UPDATES" WORK HERE (so you understand the tradeoff)
+====================================================================
+This is a fully serverless setup (no server running 24/7, no
+WebSocket server to manage), so "live" is done via polling:
+  - The staff dashboard asks the server "any new orders?" every 4
+    seconds.
+  - The customer tracking page asks "what's my status?" every 3
+    seconds.
+This is plenty fast-feeling for a theatre-food demo (a few seconds of
+delay is invisible in practice) and needs zero extra infrastructure.
+If you ever outgrow this, the next step would be Cloudflare Durable
+Objects or a WebSocket provider — not needed for the prototype.
+
+
+====================================================================
+TROUBLESHOOTING
+====================================================================
+- "Screen not found" on the order page:
+    Your screen_id in the URL doesn't match a row in the `screens`
+    table. Double check you ran db/seed.sql, or copy the id from the
+    Admin panel / Neon SQL editor: SELECT id, name FROM screens;
+
+- Staff dashboard shows nothing:
+    It only shows orders with status confirmed/preparing/ready. Orders
+    stuck at "pending_payment" mean the Razorpay payment didn't
+    complete or verification failed — check Cloudflare Pages > your
+    project > Functions logs (or Real-time Logs) for errors.
+
+- "DATABASE_URL is not set" or 500 errors from any /api/ call:
+    Environment variables weren't picked up. Re-check Settings >
+    Environment Variables in Cloudflare, then Deployments > Retry
+    deployment (env var changes need a redeploy).
+
+- Razorpay popup doesn't open / "Razorpay is not defined":
+    Make sure index.html (with the checkout.js script tag) deployed
+    correctly and you're not blocking third-party scripts/ad-blockers
+    in your mobile browser while testing.
+
+- No sound on the staff dashboard:
+    Mobile browsers block audio until the page has been tapped once.
+    Tap anywhere on the staff screen after logging in, then place a
+    test order.
+
+- Neon connection errors:
+    Make sure your DATABASE_URL ends with ?sslmode=require. Neon's
+    free tier auto-suspends when idle — the first request after being
+    idle can take a second or two longer, that's normal.
+
+
+====================================================================
+COSTS
+====================================================================
+- Neon: free tier is enough for a prototype/demo.
+- Cloudflare Pages: free tier is enough (generous request limits).
+- Razorpay test mode: free, no real transactions.
+You can run this entire prototype at $0/month.
+
+
+====================================================================
+WHAT TO SHOW A THEATRE OWNER
+====================================================================
+Walk them through, in this order:
+  1. Scan a seat QR (from Admin > Generate Seat QR) → order food →
+     pay with a test card.
+  2. Flip to the Staff Dashboard → show the order arriving live with
+     the chime/vibration, and the "Interval Preparation — Batched
+     Items" view (this is the feature that makes it look like real
+     theatre software, not just a QR menu).
+  3. Point out this is the story: more F&B revenue, without adding
+     chaos to the interval.
+
+Good luck with the demo.
